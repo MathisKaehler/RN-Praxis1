@@ -1,60 +1,57 @@
-
-#include <sys/socket.h>
-#include <netdb.h>
+#include <stdio.h>
 #include <stdlib.h>
-#include <netinet/in.h>
 #include <string.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <unistd.h>
 
-#define BACKLOG 10
-#define MYPORT "1234"
+int main(int argc, char *argv[]) {
 
+    int serverSocked, newServerSocket, portNumber, client;
+    char buffer[256];
+    struct sockaddr_in serv_addr, client_addr;
+    int n;
+    if (argc < 2) {
+        fprintf(stderr,"Keine Portnummer übergeben.");
+        exit(1);
+    }
+    serverSocked = socket(AF_INET, SOCK_STREAM, 0);
+    if (serverSocked < 0) {
+        perror("Fehler beim erstellen des Socket.");
+        exit(1);
+    }
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    portNumber = atoi(argv[1]);
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_addr.s_addr = INADDR_ANY;
+    serv_addr.sin_port = htons(portNumber);
 
-int main(int argc, char** argv) {
+    if (bind(serverSocked, (struct sockaddr *) &serv_addr,
+             sizeof(serv_addr)) < 0) {
+        perror("Fehler beim binden mit Client.");
+        exit(1);
+    }
+    listen(serverSocked, 5);
+    client = sizeof(client_addr);
+    newServerSocket = accept(serverSocked,
+                             (struct sockaddr *) &client_addr,
+                             &client);
+    if (newServerSocket < 0) {
+        perror("Fehler beim Akzeptieren.");
+        exit(1);
+    }
+    bzero(buffer,256);
+    n = read(newServerSocket, buffer, 255);
+    if (n < 0) {
+        perror("Fehler beim lesen vom Socket.");
+        exit(1);
+    }
+    printf("Die erhaltene Nachricht ist: %s",buffer);
 
-    // Start here :)
-
-    struct addrinfo hints, *res;
-    socklen_t address_length;
-    struct sockaddr_in serverAddress;
-
-    memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_INET;
-    hints.ai_socktype= SOCK_STREAM;
-    hints.ai_flags= AI_PASSIVE;
-
-    getaddrinfo(NULL, MYPORT, &hints, &res);
-
-    int serverSocket = socket(res ->ai_family, res ->ai_socktype, res->ai_protocol);
-
-    bind(serverSocket, res->ai_addr, res->ai_addrlen);
-
-    connect(serverSocket, res->ai_addr, res->ai_addrlen);
-
-    listen(serverSocket, BACKLOG);
-
-    address_length= sizeof(serverAddress);
-
-    int new_server= accept(serverSocket,(struct sockaddr* ) &serverAddress,(socklen_t *)&address_length);
-
-    char *msg = "Reply\n";
-    int len, bytes_sent;
-
-    len= strlen(msg);
-    bytes_sent = send(new_server,msg,len, 0);
-
-    return EXIT_SUCCESS;
-};
-
-    // Listen on the socket
-    //int listening = listen(serverSocket, backlog);
-    //if (listening < 0){
-      //  printf("Der server ist nicht erreichbar!\n");
-       // return 1;
-        //}
-
-    // Accept a connection & wait for a connection
-   // while(1) {
-     //   clientSocket = accept(serverSocket, NULL, NULL);
-      //  send(clientSocket, httpHeader, sizeof(httpHeader), 0);
-        //close(clientSo
-
+    n = write(newServerSocket, "Reply", 5);
+    if (n < 0) {
+        perror("Fehler beim Antworten.");
+        exit(1);
+    }
+    return 0;
+}
